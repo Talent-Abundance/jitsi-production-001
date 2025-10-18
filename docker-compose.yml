@@ -1,0 +1,111 @@
+version: "3.9"
+
+services:
+  # Frontend
+  web:
+    image: jitsi/web:${JITSI_IMAGE_VERSION:-stable}
+    restart: unless-stopped
+    ports:
+      - "8001:80"  # frontend accessible here
+      - "8443:8443"
+    volumes:
+        - ${CONFIG}/web:/config:Z           # persistent configs
+        - ${CONFIG}/transcripts:/usr/share/jitsi-meet/transcripts:Z
+    environment:
+      - ENABLE_XMPP_WEBSOCKET=1
+      - ENABLE_AUTH=1
+      - ENABLE_GUESTS=1
+      # ...other env variables
+    networks:
+      - meet.jitsi
+    depends_on:
+      - jvb
+      - prosody
+      - jicofo
+
+  # XMPP server
+  prosody:
+    image: jitsi/prosody:${JITSI_IMAGE_VERSION:-stable}
+    restart: unless-stopped
+    ports:
+      - "5222:5222"
+      - "5280:5280"
+      - "5347:5347"
+    volumes:
+      - C:/jitsi-config/prosody:/config
+      - ./prosody-plugins-custom:/prosody-plugins-custom:ro
+    environment:
+      - ENABLE_AUTH=${ENABLE_AUTH}
+      - ENABLE_GUESTS=${ENABLE_GUESTS}
+      - AUTH_TYPE=${AUTH_TYPE}
+      - XMPP_DOMAIN=${XMPP_DOMAIN}
+      - XMPP_AUTH_DOMAIN=${XMPP_AUTH_DOMAIN}
+      - XMPP_MUC_DOMAIN=${XMPP_MUC_DOMAIN}
+      - XMPP_INTERNAL_MUC_DOMAIN=${XMPP_INTERNAL_MUC_DOMAIN}
+      - XMPP_BOSH_URL_BASE=${XMPP_BOSH_URL_BASE}
+      - BOSH_URL_BASE=${BOSH_URL_BASE}
+      - XMPP_WEBSOCKET_URL=${XMPP_WEBSOCKET_URL}
+      - ENABLE_XMPP_WEBSOCKET=${ENABLE_XMPP_WEBSOCKET}
+
+      # 🔐 Important - must be explicitly passed
+      - JICOFO_AUTH_USER=${JICOFO_AUTH_USER}
+      - JICOFO_AUTH_PASSWORD=${JICOFO_AUTH_PASSWORD}
+      - JICOFO_AUTH_DOMAIN=${JICOFO_AUTH_DOMAIN}
+
+      - JVB_AUTH_USER=${JVB_AUTH_USER}
+      - JVB_AUTH_PASSWORD=${JVB_AUTH_PASSWORD}
+
+      - JWT_APP_ID=eewev03r3-rj
+      - JWT_APP_SECRET=ba48cba3ed5c8ac1c2750571cc1588a099c3518dcae25ad1de3193facde926e1
+      - JWT_ALLOW_EMPTY=0
+      - JWT_AUTH_TYPE=token
+      - JWT_CLAIM_MODERATOR=moderator
+    networks:
+      meet.jitsi:
+        aliases:
+          - prosody
+          - ${XMPP_SERVER:-xmpp.meet.jitsi}
+  # Focus component
+  jicofo:
+    image: jitsi/jicofo:${JITSI_IMAGE_VERSION:-stable}
+    restart: unless-stopped
+    ports:
+      - "8888:8888"
+    volumes:
+      - ${CONFIG}/jicofo:/config:Z
+    environment:
+      - JICOFO_AUTH_USER=focus
+      - JICOFO_AUTH_PASSWORD=StrongJicofoPassword123
+      - JICOFO_AUTH_DOMAIN=auth.meet.jitsi
+      - ENABLE_AUTH=1
+      - AUTH_TYPE=jwt
+      # ...other env variables
+    depends_on:
+      - prosody
+    networks:
+      - meet.jitsi
+
+  # Video bridge
+  jvb:
+    image: jitsi/jvb:${JITSI_IMAGE_VERSION:-stable}
+    restart: unless-stopped
+    ports:
+      - "10000:10000/udp"
+      - "8081:8080"
+    volumes:
+      - ${CONFIG}/jvb:/config:Z
+    environment:
+      - JVB_AUTH_USER=jvb
+      - JVB_AUTH_PASSWORD=StrongSecretPassword123
+      - JVB_STUN_SERVERS=stun:stun.l.google.com:19302
+      - JVB_AUTH_DOMAIN=auth.meet.jitsi
+      # ...other env variables
+    depends_on:
+      - prosody
+    networks:
+      - meet.jitsi
+
+# Custom network
+networks:
+  meet.jitsi:
+    driver: bridge
