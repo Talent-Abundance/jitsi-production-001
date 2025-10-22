@@ -3,11 +3,13 @@ version: "3.9"
 services:
   # Frontend
   web:
-    image: jitsi/web:${JITSI_IMAGE_VERSION:-stable}
+    image: my-jitsi-web
     restart: unless-stopped
     ports:
-      - "8001:80"  # frontend accessible here
-      - "8443:8443"
+     - "80:80"         # HTTP
+     - "443:443"       # HTTPS
+    #  - "10000:10000/udp"  # WebRTC media
+
     volumes:
         - ${CONFIG}/web:/config:Z           # persistent configs
         - ${CONFIG}/transcripts:/usr/share/jitsi-meet/transcripts:Z
