@@ -5,3 +5,5 @@ docker-compose.override.yml
 log-analyser/grafana
 **/.DS_Store
 **/.idea
+# Ignore Jitsi runtime/config data
+jitsi-meet-cfg/

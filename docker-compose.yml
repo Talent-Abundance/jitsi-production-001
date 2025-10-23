@@ -1,31 +1,35 @@
 version: "3.9"
 
 services:
-  # Frontend
   web:
-    image: my-jitsi-web
+    user: root
+    build:
+      context: .
+      dockerfile: Dockerfile-web
+    image: my-jitsi-web:latest
     restart: unless-stopped
     ports:
-     - "80:80"         # HTTP
-     - "443:443"       # HTTPS
-    #  - "10000:10000/udp"  # WebRTC media
-
+      - "8080:80"   # Host port 8080 -> container port 80
     volumes:
-        - ${CONFIG}/web:/config:Z           # persistent configs
-        - ${CONFIG}/transcripts:/usr/share/jitsi-meet/transcripts:Z
+      - ${CONFIG}/web:/config:Z
+      - ${CONFIG}/transcripts:/usr/share/jitsi-meet/transcripts:Z
+      # OPTIONAL (dev only): mount jitsi-meet for live edits - comment out for production
+      # - ./jitsi-meet:/usr/share/jitsi-meet:Z
     environment:
-      - ENABLE_XMPP_WEBSOCKET=1
-      - ENABLE_AUTH=1
-      - ENABLE_GUESTS=1
-      # ...other env variables
+      - ENABLE_XMPP_WEBSOCKET=${ENABLE_XMPP_WEBSOCKET}
+      - ENABLE_AUTH=${ENABLE_AUTH}
+      - ENABLE_GUESTS=${ENABLE_GUESTS}
+      - PUBLIC_URL=${PUBLIC_URL}
+      - ENABLE_LETSENCRYPT=${ENABLE_LETSENCRYPT}
+      - LETSENCRYPT_DOMAIN=${LETSENCRYPT_DOMAIN}
+      - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}
     networks:
       - meet.jitsi
     depends_on:
-      - jvb
       - prosody
       - jicofo
+      - jvb
 
-  # XMPP server
   prosody:
     image: jitsi/prosody:${JITSI_IMAGE_VERSION:-stable}
     restart: unless-stopped
@@ -34,7 +38,7 @@ services:
       - "5280:5280"
       - "5347:5347"
     volumes:
-      - C:/jitsi-config/prosody:/config
+      - ${CONFIG}/prosody:/config:Z
       - ./prosody-plugins-custom:/prosody-plugins-custom:ro
     environment:
       - ENABLE_AUTH=${ENABLE_AUTH}
@@ -45,29 +49,23 @@ services:
       - XMPP_MUC_DOMAIN=${XMPP_MUC_DOMAIN}
       - XMPP_INTERNAL_MUC_DOMAIN=${XMPP_INTERNAL_MUC_DOMAIN}
       - XMPP_BOSH_URL_BASE=${XMPP_BOSH_URL_BASE}
-      - BOSH_URL_BASE=${BOSH_URL_BASE}
       - XMPP_WEBSOCKET_URL=${XMPP_WEBSOCKET_URL}
-      - ENABLE_XMPP_WEBSOCKET=${ENABLE_XMPP_WEBSOCKET}
-
-      # 🔐 Important - must be explicitly passed
       - JICOFO_AUTH_USER=${JICOFO_AUTH_USER}
       - JICOFO_AUTH_PASSWORD=${JICOFO_AUTH_PASSWORD}
       - JICOFO_AUTH_DOMAIN=${JICOFO_AUTH_DOMAIN}
-
       - JVB_AUTH_USER=${JVB_AUTH_USER}
       - JVB_AUTH_PASSWORD=${JVB_AUTH_PASSWORD}
-
-      - JWT_APP_ID=eewev03r3-rj
-      - JWT_APP_SECRET=ba48cba3ed5c8ac1c2750571cc1588a099c3518dcae25ad1de3193facde926e1
-      - JWT_ALLOW_EMPTY=0
-      - JWT_AUTH_TYPE=token
-      - JWT_CLAIM_MODERATOR=moderator
+      - JWT_APP_ID=${JWT_APP_ID}
+      - JWT_APP_SECRET=${JWT_APP_SECRET}
+      - JWT_ALLOW_EMPTY=${JWT_ALLOW_EMPTY}
+      - JWT_AUTH_TYPE=${JWT_AUTH_TYPE}
+      - JWT_CLAIM_MODERATOR=${JWT_CLAIM_MODERATOR}
     networks:
       meet.jitsi:
         aliases:
           - prosody
           - ${XMPP_SERVER:-xmpp.meet.jitsi}
-  # Focus component
+
   jicofo:
     image: jitsi/jicofo:${JITSI_IMAGE_VERSION:-stable}
     restart: unless-stopped
@@ -76,18 +74,16 @@ services:
     volumes:
       - ${CONFIG}/jicofo:/config:Z
     environment:
-      - JICOFO_AUTH_USER=focus
-      - JICOFO_AUTH_PASSWORD=StrongJicofoPassword123
-      - JICOFO_AUTH_DOMAIN=auth.meet.jitsi
-      - ENABLE_AUTH=1
-      - AUTH_TYPE=jwt
-      # ...other env variables
+      - JICOFO_AUTH_USER=${JICOFO_AUTH_USER}
+      - JICOFO_AUTH_PASSWORD=${JICOFO_AUTH_PASSWORD}
+      - JICOFO_AUTH_DOMAIN=${JICOFO_AUTH_DOMAIN}
+      - ENABLE_AUTH=${ENABLE_AUTH}
+      - AUTH_TYPE=${AUTH_TYPE}
     depends_on:
       - prosody
     networks:
       - meet.jitsi
 
-  # Video bridge
   jvb:
     image: jitsi/jvb:${JITSI_IMAGE_VERSION:-stable}
     restart: unless-stopped
@@ -97,17 +93,17 @@ services:
     volumes:
       - ${CONFIG}/jvb:/config:Z
     environment:
-      - JVB_AUTH_USER=jvb
-      - JVB_AUTH_PASSWORD=StrongSecretPassword123
-      - JVB_STUN_SERVERS=stun:stun.l.google.com:19302
-      - JVB_AUTH_DOMAIN=auth.meet.jitsi
-      # ...other env variables
+      - JVB_AUTH_USER=${JVB_AUTH_USER}
+      - JVB_AUTH_PASSWORD=${JVB_AUTH_PASSWORD}
+      - JVB_STUN_SERVERS=${JVB_STUN_SERVERS}
+      - JVB_AUTH_DOMAIN=${JVB_AUTH_DOMAIN}
+      - JVB_PORT=${JVB_PORT}
+      - JVB_COLIBRI_PORT=${JVB_COLIBRI_PORT}
     depends_on:
       - prosody
     networks:
       - meet.jitsi
 
-# Custom network
 networks:
   meet.jitsi:
     driver: bridge

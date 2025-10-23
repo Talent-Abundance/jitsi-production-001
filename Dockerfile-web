@@ -1,0 +1,18 @@
+# Dockerfile-web
+FROM jitsi/web:stable
+
+# Copy your customizations into the image (production-friendly)
+COPY ./jitsi-meet/css/all.css /usr/share/jitsi-meet/css/all.css
+COPY ./jitsi-meet/images/logo.png /usr/share/jitsi-meet/images/logo.png
+COPY ./jitsi-meet/interface_config.js /usr/share/jitsi-meet/interface_config.js
+# If you have extra libs or scripts, copy them too:
+# COPY ./jitsi-meet/libs/custom-face-api.js /usr/share/jitsi-meet/libs/custom-face-api.js
+
+# Ensure file permissions are sane (optional)
+USER root
+RUN chmod -R 644 /usr/share/jitsi-meet/css/all.css \
+ && chmod 644 /usr/share/jitsi-meet/images/logo.png \
+ && chmod 644 /usr/share/jitsi-meet/interface_config.js
+
+# revert to default user (if needed by base image)
+USER 1000
