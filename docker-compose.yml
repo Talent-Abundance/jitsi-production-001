@@ -79,6 +79,9 @@ services:
       - JICOFO_AUTH_DOMAIN=${JICOFO_AUTH_DOMAIN}
       - ENABLE_AUTH=${ENABLE_AUTH}
       - AUTH_TYPE=${AUTH_TYPE}
+
+      - JICOFO_ENABLE_HEALTH_CHECKS=true
+      - JICOFO_MAX_INACTIVE_ENDPOINTS=0
     depends_on:
       - prosody
     networks:
